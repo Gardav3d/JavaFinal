@@ -4,32 +4,82 @@ using FishNet.Object;
 public class PlayerMovement : NetworkBehaviour
 {
     public float moveSpeed = 5f;
+    public float jumpHeight = 2f;
+    public float gravity = -9.81f;
+    public Transform cameraTransform;
+
     private CharacterController controller;
-    public Transform cameraTransform; // Assign this to the local cameraHolder in the prefab
+    private float verticalVelocity;
+    private bool isGrounded;
+
+    private int jumpCount = 0;
+    public int maxJumps = 2; // Set to 2 for double jump
 
     private void Awake()
     {
         controller = GetComponent<CharacterController>();
     }
 
+    public override void OnStartNetwork()
+    {
+        base.OnStartNetwork();
+
+        if (base.Owner.IsLocalClient)
+        {
+            // Automatically find the camera on this player (assumes it's a child)
+            Camera cam = GetComponentInChildren<Camera>();
+            if (cam != null)
+            {
+                cameraTransform = cam.transform;
+                cam.gameObject.SetActive(true); // Enable only local player cam
+            }
+        }
+        else
+        {
+        // Disable other players' cameras so only local cam renders
+        Camera cam = GetComponentInChildren<Camera>();
+        if (cam != null)
+            cam.gameObject.SetActive(false);
+        }
+    }
+
     private void Update()
     {
         if (!IsOwner) return;
 
+        isGrounded = controller.isGrounded;
+
+        if (isGrounded)
+        {
+            verticalVelocity = -2f; // Keeps player grounded
+            jumpCount = 0; // Reset jump count when grounded
+        }
+
         float moveX = Input.GetAxis("Horizontal");
         float moveZ = Input.GetAxis("Vertical");
 
-        // Camera-relative directions
+        // Jump input
+        if (Input.GetButtonDown("Jump") && jumpCount < maxJumps)
+        {
+            verticalVelocity = Mathf.Sqrt(jumpHeight * -2f * gravity);
+            jumpCount++;
+        }
+
+        // Apply gravity
+        verticalVelocity += gravity * Time.deltaTime;
+
+        // Camera-relative movement
         Vector3 camForward = cameraTransform.forward;
         Vector3 camRight = cameraTransform.right;
 
-        // Flatten the camera vectors so movement stays on the ground
         camForward.y = 0f;
         camRight.y = 0f;
         camForward.Normalize();
         camRight.Normalize();
 
-        Vector3 move = (camForward * moveZ + camRight * moveX);
-        controller.Move(move * moveSpeed * Time.deltaTime);
+        Vector3 move = camForward * moveZ + camRight * moveX;
+        move.y = verticalVelocity;
+
+        controller.Move(move * Time.deltaTime * moveSpeed);
     }
 }
