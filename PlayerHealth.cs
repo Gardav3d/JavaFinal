@@ -2,6 +2,7 @@ using UnityEngine;
 using FishNet.Object;
 using FishNet.Object.Synchronizing;
 using FishNet.Connection;
+using TMPro;
 
 public class PlayerHealth : NetworkBehaviour
 {
@@ -11,7 +12,7 @@ public class PlayerHealth : NetworkBehaviour
     [SerializeField] private MonoBehaviour[] componentsToToggle;
 
     private int currentHealth;
-
+    private TextMeshProUGUI healthText;
     private bool isDead;
 
     public override void OnStartServer()
